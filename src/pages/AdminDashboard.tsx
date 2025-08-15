@@ -1,72 +1,30 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, Clock, Calendar, Settings, LogOut } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminDashboard = () => {
-  const [user, setUser] = useState<any>(null);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [workHours, setWorkHours] = useState<any[]>([]);
+  // Demo data - will be replaced with real Supabase data
+  const [employees] = useState([
+    { id: 1, full_name: "Jan Jansen", email: "jan@stuwflex.nl", is_available: true },
+    { id: 2, full_name: "Marie de Vries", email: "marie@stuwflex.nl", is_available: false },
+    { id: 3, full_name: "Peter Bakker", email: "peter@stuwflex.nl", is_available: true },
+  ]);
+  
+  const [workHours] = useState([
+    { id: 1, profiles: { full_name: "Jan Jansen" }, date: "2024-08-15", hours: 8, task_type: "Orders picken", status: "approved" },
+    { id: 2, profiles: { full_name: "Marie de Vries" }, date: "2024-08-14", hours: 6, task_type: "EPT rijden", status: "pending" },
+    { id: 3, profiles: { full_name: "Peter Bakker" }, date: "2024-08-14", hours: 7, task_type: "Containers lossen", status: "approved" },
+  ]);
+  
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useEffect(() => {
-    checkAdmin();
-    loadEmployees();
-    loadWorkHours();
-  }, []);
-
-  const checkAdmin = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    
-    if (profile?.role !== 'admin') {
-      navigate('/dashboard');
-      return;
-    }
-    
-    setUser(user);
-  };
-
-  const loadEmployees = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('role', 'employee');
-    
-    setEmployees(data || []);
-  };
-
-  const loadWorkHours = async () => {
-    const { data } = await supabase
-      .from('work_hours')
-      .select(`
-        *,
-        profiles!work_hours_user_id_fkey(full_name)
-      `)
-      .order('date', { ascending: false })
-      .limit(10);
-    
-    setWorkHours(data || []);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  const handleLogout = () => {
     navigate('/login');
     toast({
       title: "Uitgelogd",

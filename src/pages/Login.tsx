@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
@@ -18,42 +17,23 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
+    // Temporary demo login - will be replaced with real Supabase auth
+    setTimeout(() => {
+      if (email === "admin@stuwflex.nl") {
         toast({
-          title: "Succesvol ingelogd",
+          title: "Succesvol ingelogd als Admin",
           description: "Welkom bij Stuwflex!",
         });
-        
-        // Check user role and redirect accordingly
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single();
-
-        if (profile?.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
-        }
+        navigate('/admin');
+      } else {
+        toast({
+          title: "Succesvol ingelogd als Werknemer",
+          description: "Welkom bij Stuwflex!",
+        });
+        navigate('/dashboard');
       }
-    } catch (error: any) {
-      toast({
-        title: "Inloggen mislukt",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
       setLoading(false);
-    }
+    }, 1000);
   };
 
   return (
