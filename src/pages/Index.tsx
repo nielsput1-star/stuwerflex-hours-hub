@@ -17,7 +17,7 @@ const Index = () => {
           <p className="text-xl text-muted-foreground mb-8">
             Urenregistratie & Personeelsplanning
           </p>
-          <Button size="lg" onClick={() => navigate('/login')}>
+          <Button size="lg" onClick={() => navigate('/auth')}>
             Inloggen
           </Button>
         </div>
