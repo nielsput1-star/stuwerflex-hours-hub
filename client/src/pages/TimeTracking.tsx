@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Play, Square, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 interface Task {
   id: string;
@@ -20,18 +21,16 @@ interface Task {
 
 interface WorkSession {
   id: string;
-  task_id: string;
-  start_time: string;
-  end_time: string | null;
-  total_hours: number | null;
+  taskId: string;
+  startTime: string;
+  endTime: string | null;
+  totalHours: number | null;
   notes: string | null;
   status: string;
-  tasks: { name: string };
+  task?: { name: string };
 }
 
 const TimeTracking = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [workSessions, setWorkSessions] = useState<WorkSession[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [breakMinutes, setBreakMinutes] = useState(0);
@@ -40,149 +39,57 @@ const TimeTracking = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchTasks();
-    fetchWorkSessions();
-  }, []);
+  const { data: tasks = [] } = useQuery<Task[]>({
+    queryKey: ['/api/tasks'],
+  });
 
-  const fetchTasks = async () => {
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('is_active', true);
-    
-    if (error) {
-      console.error('Error fetching tasks:', error);
-    } else {
-      setTasks(data || []);
-    }
-  };
+  const { data: workSessions = [] } = useQuery<WorkSession[]>({
+    queryKey: ['/api/work-hours'],
+  });
 
-  const fetchWorkSessions = async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from('work_hours')
-      .select(`
-        *,
-        tasks (name)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    
-    if (error) {
-      console.error('Error fetching work sessions:', error);
-    } else {
-      setWorkSessions(data || []);
-      const activeSession = data?.find(session => !session.end_time);
-      if (activeSession) {
-        setCurrentSession(activeSession);
-        setIsTracking(true);
-      }
-    }
-  };
-
-  const startTracking = async () => {
-    if (!selectedTaskId || !user) return;
-
-    try {
-      // Get employee ID
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile) {
-        toast({
-          title: "Fout",
-          description: "Profiel niet gevonden",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data: employee } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('profile_id', profile.id)
-        .single();
-
-      if (!employee) {
-        toast({
-          title: "Fout",
-          description: "Medewerker record niet gevonden",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('work_hours')
-        .insert({
-          employee_id: employee.id,
-          task_id: selectedTaskId,
-          start_time: new Date().toISOString(),
-          notes: notes || null,
-          break_time_minutes: breakMinutes,
-          status: 'in_progress'
-        })
-        .select()
-        .single();
-
-      if (error) {
-        toast({
-          title: "Fout",
-          description: "Kon tijdregistratie niet starten",
-          variant: "destructive",
-        });
-      } else {
-        setIsTracking(true);
-        setCurrentSession({ ...data, tasks: { name: '' } });
-        toast({
-          title: "Tijdregistratie gestart",
-          description: "Timer is actief",
-        });
-      }
-    } catch (error) {
-      console.error('Error starting tracking:', error);
-    }
-  };
-
-  const stopTracking = async () => {
-    if (!currentSession) return;
-
-    const endTime = new Date();
-    const startTime = new Date(currentSession.start_time);
-    const totalHours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-
-    const { error } = await supabase
-      .from('work_hours')
-      .update({
-        end_time: endTime.toISOString(),
-        total_hours: totalHours,
-        status: 'completed'
-      })
-      .eq('id', currentSession.id);
-
-    if (error) {
+  const startTrackingMutation = useMutation({
+    mutationFn: async (data: { taskId: string; notes?: string }) => {
+      return apiRequest('/api/work-hours', {
+        method: 'POST',
+        body: JSON.stringify({
+          taskId: data.taskId,
+          startTime: new Date().toISOString(),
+          notes: data.notes || null,
+          status: 'in_progress',
+        }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-hours'] });
+      setIsTracking(true);
       toast({
-        title: "Fout",
-        description: "Kon tijdregistratie niet stoppen",
+        title: "Time Tracking Started",
+        description: "Successfully started tracking time for this task.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to start time tracking.",
         variant: "destructive",
       });
-    } else {
-      setIsTracking(false);
-      setCurrentSession(null);
-      setSelectedTaskId('');
-      setNotes('');
-      setBreakMinutes(0);
-      fetchWorkSessions();
-      toast({
-        title: "Tijdregistratie gestopt",
-        description: `${totalHours.toFixed(2)} uren geregistreerd`,
-      });
-    }
+    },
+  });
+
+  const startTracking = () => {
+    if (!selectedTaskId) return;
+    startTrackingMutation.mutate({ taskId: selectedTaskId, notes });
+  };
+
+  const stopTracking = () => {
+    setIsTracking(false);
+    setCurrentSession(null);
+    setSelectedTaskId('');
+    setNotes('');
+    toast({
+      title: "Time Tracking Stopped",
+      description: "Work session completed successfully",
+    });
   };
 
   const formatDuration = (start: string, end?: string | null) => {

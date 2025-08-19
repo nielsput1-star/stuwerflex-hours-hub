@@ -1,52 +1,33 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Clock, Building2, Search } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Task {
   id: string;
   name: string;
   description: string | null;
   type: string;
-  estimated_hours: number | null;
-  departments: { name: string } | null;
+  estimatedHours: number | null;
+  departmentId: string | null;
 }
 
 const Tasks = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
+  const { data: tasks = [], isLoading } = useQuery<Task[]>({
+    queryKey: ['/api/tasks'],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
   useEffect(() => {
     filterTasks();
   }, [tasks, searchTerm, typeFilter]);
-
-  const fetchTasks = async () => {
-    const { data, error } = await supabase
-      .from('tasks')
-      .select(`
-        *,
-        departments (name)
-      `)
-      .eq('is_active', true)
-      .order('name');
-    
-    if (error) {
-      console.error('Error fetching tasks:', error);
-    } else {
-      setTasks(data || []);
-    }
-    setLoading(false);
-  };
 
   const filterTasks = () => {
     let filtered = tasks;
@@ -85,7 +66,7 @@ const Tasks = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -160,17 +141,10 @@ const Tasks = () => {
                 )}
                 
                 <div className="space-y-2">
-                  {task.departments && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <span>{task.departments.name}</span>
-                    </div>
-                  )}
-                  
-                  {task.estimated_hours && (
+                  {task.estimatedHours && (
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{task.estimated_hours} uur geschat</span>
+                      <span>{task.estimatedHours} hours estimated</span>
                     </div>
                   )}
                 </div>
