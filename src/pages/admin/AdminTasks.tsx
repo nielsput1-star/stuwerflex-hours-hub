@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ListTodo, Plus, Edit, Clock, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
 interface Task {
   id: string;
@@ -39,7 +40,7 @@ const AdminTasks = () => {
   // Form states
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [type, setType] = useState('warehouse');
+  const [type, setType] = useState('orders_picken');
   const [departmentId, setDepartmentId] = useState('');
   const [estimatedHours, setEstimatedHours] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -90,7 +91,7 @@ const AdminTasks = () => {
         .insert({
           name: name.trim(),
           description: description.trim() || null,
-          type,
+          type: type as Database['public']['Enums']['task_type'],
           department_id: departmentId || null,
           estimated_hours: estimatedHours ? parseFloat(estimatedHours) : null,
           is_active: isActive,
@@ -125,7 +126,7 @@ const AdminTasks = () => {
         .update({
           name: name.trim(),
           description: description.trim() || null,
-          type,
+          type: type as Database['public']['Enums']['task_type'],
           department_id: departmentId || null,
           estimated_hours: estimatedHours ? parseFloat(estimatedHours) : null,
           is_active: isActive,
@@ -167,7 +168,7 @@ const AdminTasks = () => {
   const resetForm = () => {
     setName('');
     setDescription('');
-    setType('warehouse');
+    setType('orders_picken');
     setDepartmentId('');
     setEstimatedHours('');
     setIsActive(true);
@@ -175,20 +176,24 @@ const AdminTasks = () => {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'warehouse': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'logistics': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'maintenance': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-      case 'administrative': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'orders_picken': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'ept_rijden': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'combi_truck': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      case 'containers_lossen': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'magazijn_schoonmaken': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'inventaris': return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
     }
   };
 
   const getTypeName = (type: string) => {
     switch (type) {
-      case 'warehouse': return 'Magazijn';
-      case 'logistics': return 'Logistiek';
-      case 'maintenance': return 'Onderhoud';
-      case 'administrative': return 'Administratief';
+      case 'orders_picken': return 'Orders picken';
+      case 'ept_rijden': return 'EPT rijden';
+      case 'combi_truck': return 'Combi truck';
+      case 'containers_lossen': return 'Containers lossen';
+      case 'magazijn_schoonmaken': return 'Magazijn schoonmaken';
+      case 'inventaris': return 'Inventaris';
       default: return type;
     }
   };
@@ -245,10 +250,12 @@ const AdminTasks = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="warehouse">Magazijn</SelectItem>
-                    <SelectItem value="logistics">Logistiek</SelectItem>
-                    <SelectItem value="maintenance">Onderhoud</SelectItem>
-                    <SelectItem value="administrative">Administratief</SelectItem>
+                    <SelectItem value="orders_picken">Orders picken</SelectItem>
+                    <SelectItem value="ept_rijden">EPT rijden</SelectItem>
+                    <SelectItem value="combi_truck">Combi truck</SelectItem>
+                    <SelectItem value="containers_lossen">Containers lossen</SelectItem>
+                    <SelectItem value="magazijn_schoonmaken">Magazijn schoonmaken</SelectItem>
+                    <SelectItem value="inventaris">Inventaris</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -335,10 +342,12 @@ const AdminTasks = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="warehouse">Magazijn</SelectItem>
-                  <SelectItem value="logistics">Logistiek</SelectItem>
-                  <SelectItem value="maintenance">Onderhoud</SelectItem>
-                  <SelectItem value="administrative">Administratief</SelectItem>
+                  <SelectItem value="orders_picken">Orders picken</SelectItem>
+                  <SelectItem value="ept_rijden">EPT rijden</SelectItem>
+                  <SelectItem value="combi_truck">Combi truck</SelectItem>
+                  <SelectItem value="containers_lossen">Containers lossen</SelectItem>
+                  <SelectItem value="magazijn_schoonmaken">Magazijn schoonmaken</SelectItem>
+                  <SelectItem value="inventaris">Inventaris</SelectItem>
                 </SelectContent>
               </Select>
             </div>

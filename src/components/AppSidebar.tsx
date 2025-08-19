@@ -68,7 +68,7 @@ export function AppSidebar() {
           .single();
         
         if (data && !error) {
-          setUserProfile({ role: data.role });
+          setUserProfile({ role: data.role as 'admin' | 'employee' });
         }
       }
     };

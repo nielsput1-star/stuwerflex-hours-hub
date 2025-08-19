@@ -138,7 +138,7 @@ const TimeTracking = () => {
         });
       } else {
         setIsTracking(true);
-        setCurrentSession(data);
+        setCurrentSession({ ...data, tasks: { name: '' } });
         toast({
           title: "Tijdregistratie gestart",
           description: "Timer is actief",
