@@ -60,35 +60,35 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/admin/employees" element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <Layout>
                   <AdminEmployees />
                 </Layout>
               </ProtectedRoute>
             } />
             <Route path="/admin/departments" element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <Layout>
                   <AdminDepartments />
                 </Layout>
               </ProtectedRoute>
             } />
             <Route path="/admin/tasks" element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <Layout>
                   <AdminTasks />
                 </Layout>
               </ProtectedRoute>
             } />
             <Route path="/admin/work-hours" element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <Layout>
                   <AdminWorkHours />
                 </Layout>
               </ProtectedRoute>
             } />
             <Route path="/admin/reports" element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin={true}>
                 <Layout>
                   <AdminReports />
                 </Layout>
