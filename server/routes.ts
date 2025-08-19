@@ -1,7 +1,18 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProfileSchema, insertDepartmentSchema, insertEmployeeSchema, insertTaskSchema, insertWorkHourSchema } from "@shared/schema";
+import { 
+  insertProfileSchema, 
+  insertDepartmentSchema, 
+  insertEmployeeSchema, 
+  insertTaskSchema, 
+  insertWorkHourSchema,
+  insertTimeSessionSchema,
+  insertProjectSchema,
+  insertOvertimeSchema,
+  insertLeaveRequestSchema,
+  insertAttendanceSchema
+} from "@shared/schema";
 import jwt from "jsonwebtoken";
 
 interface AuthRequest extends Request {
@@ -284,6 +295,311 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(workHour);
     } catch (error) {
       console.error('Update work hour error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Time Sessions routes (for real-time tracking)
+  app.get('/api/time-sessions', authenticateToken, async (req, res) => {
+    try {
+      const { filter } = req.query;
+      let sessions;
+      
+      if (filter === 'active') {
+        const employee = await storage.getEmployeeByProfileId(req.user.profileId);
+        if (!employee) {
+          return res.status(404).json({ message: 'Employee record not found' });
+        }
+        sessions = await storage.getActiveSessionsByEmployee(employee.id);
+      } else {
+        sessions = await storage.getActiveSessions();
+      }
+      res.json(sessions);
+    } catch (error) {
+      console.error('Get time sessions error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/time-sessions', authenticateToken, async (req, res) => {
+    try {
+      const employee = await storage.getEmployeeByProfileId(req.user.profileId);
+      if (!employee) {
+        return res.status(404).json({ message: 'Employee record not found' });
+      }
+
+      const validatedData = insertTimeSessionSchema.parse({
+        ...req.body,
+        employeeId: employee.id
+      });
+      const session = await storage.createTimeSession(validatedData);
+      res.json(session);
+    } catch (error) {
+      console.error('Create time session error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/time-sessions/:id/stop', authenticateToken, async (req, res) => {
+    try {
+      const { endTime, totalHours, notes, breakTimeMinutes } = req.body;
+      
+      // First update the session to inactive
+      const session = await storage.updateTimeSession(req.params.id, {
+        isActive: false,
+        notes
+      });
+
+      if (session) {
+        // Create a work hour record from the session
+        const workHour = await storage.createWorkHour({
+          employeeId: session.employeeId,
+          taskId: session.taskId,
+          startTime: session.startTime,
+          endTime: endTime,
+          totalHours: totalHours,
+          breakTimeMinutes: breakTimeMinutes || 0,
+          notes: notes,
+          status: 'completed'
+        });
+        res.json({ session, workHour });
+      } else {
+        res.status(404).json({ message: 'Session not found' });
+      }
+    } catch (error) {
+      console.error('Stop time session error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Projects routes
+  app.get('/api/projects', authenticateToken, async (req, res) => {
+    try {
+      const projects = await storage.getProjects();
+      res.json(projects);
+    } catch (error) {
+      console.error('Get projects error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/projects', authenticateToken, async (req, res) => {
+    try {
+      const validatedData = insertProjectSchema.parse(req.body);
+      const project = await storage.createProject(validatedData);
+      res.json(project);
+    } catch (error) {
+      console.error('Create project error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.patch('/api/projects/:id', authenticateToken, async (req, res) => {
+    try {
+      const validatedData = insertProjectSchema.partial().parse(req.body);
+      const project = await storage.updateProject(req.params.id, validatedData);
+      res.json(project);
+    } catch (error) {
+      console.error('Update project error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Leave Requests routes
+  app.get('/api/leave-requests', authenticateToken, async (req, res) => {
+    try {
+      const { filter } = req.query;
+      let requests;
+
+      if (filter === 'team' && (req.user.role === 'admin' || req.user.role === 'manager')) {
+        requests = await storage.getPendingLeaveRequests();
+      } else {
+        const employee = await storage.getEmployeeByProfileId(req.user.profileId);
+        if (!employee) {
+          return res.status(404).json({ message: 'Employee record not found' });
+        }
+        requests = await storage.getLeaveRequestsByEmployee(employee.id);
+      }
+      res.json(requests);
+    } catch (error) {
+      console.error('Get leave requests error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/leave-requests', authenticateToken, async (req, res) => {
+    try {
+      const employee = await storage.getEmployeeByProfileId(req.user.profileId);
+      if (!employee) {
+        return res.status(404).json({ message: 'Employee record not found' });
+      }
+
+      const validatedData = insertLeaveRequestSchema.parse({
+        ...req.body,
+        employeeId: employee.id
+      });
+      const request = await storage.createLeaveRequest(validatedData);
+      res.json(request);
+    } catch (error) {
+      console.error('Create leave request error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/leave-requests/:id/approve', authenticateToken, async (req, res) => {
+    try {
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+        return res.status(403).json({ message: 'Only admins and managers can approve leave requests' });
+      }
+
+      const { comments } = req.body;
+      const request = await storage.updateLeaveRequest(req.params.id, {
+        status: 'approved',
+        approvedBy: req.user.profileId,
+        approvedAt: new Date().toISOString(),
+        comments
+      });
+      res.json(request);
+    } catch (error) {
+      console.error('Approve leave request error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/leave-requests/:id/reject', authenticateToken, async (req, res) => {
+    try {
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+        return res.status(403).json({ message: 'Only admins and managers can reject leave requests' });
+      }
+
+      const { comments } = req.body;
+      const request = await storage.updateLeaveRequest(req.params.id, {
+        status: 'rejected',
+        approvedBy: req.user.profileId,
+        approvedAt: new Date().toISOString(),
+        comments
+      });
+      res.json(request);
+    } catch (error) {
+      console.error('Reject leave request error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Leave Balance route
+  app.get('/api/leave-balance', authenticateToken, async (req, res) => {
+    try {
+      // Mock leave balance data - in production this would calculate from leave requests
+      const balance = {
+        vacation: 25,
+        sick: 5,
+        personal: 3,
+        compTime: 8
+      };
+      res.json(balance);
+    } catch (error) {
+      console.error('Get leave balance error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Attendance routes
+  app.get('/api/attendance/today', authenticateToken, async (req, res) => {
+    try {
+      const employee = await storage.getEmployeeByProfileId(req.user.profileId);
+      if (!employee) {
+        return res.status(404).json({ message: 'Employee record not found' });
+      }
+
+      const attendance = await storage.getTodayAttendance(employee.id);
+      res.json(attendance);
+    } catch (error) {
+      console.error('Get today attendance error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/attendance/clock-in', authenticateToken, async (req, res) => {
+    try {
+      const employee = await storage.getEmployeeByProfileId(req.user.profileId);
+      if (!employee) {
+        return res.status(404).json({ message: 'Employee record not found' });
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const clockIn = new Date().toISOString();
+
+      const attendance = await storage.createAttendance({
+        employeeId: employee.id,
+        date: today,
+        clockIn: clockIn,
+        status: 'present'
+      });
+      res.json(attendance);
+    } catch (error) {
+      console.error('Clock in error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/attendance/clock-out', authenticateToken, async (req, res) => {
+    try {
+      const employee = await storage.getEmployeeByProfileId(req.user.profileId);
+      if (!employee) {
+        return res.status(404).json({ message: 'Employee record not found' });
+      }
+
+      const todayAttendance = await storage.getTodayAttendance(employee.id);
+      if (!todayAttendance) {
+        return res.status(400).json({ message: 'No clock-in record found for today' });
+      }
+
+      const clockOut = new Date().toISOString();
+      const clockInTime = new Date(todayAttendance.clockIn!);
+      const totalHours = ((new Date(clockOut).getTime() - clockInTime.getTime()) / (1000 * 60 * 60)).toFixed(2);
+
+      const attendance = await storage.updateAttendance(todayAttendance.id, {
+        clockOut: clockOut,
+        totalHours: parseFloat(totalHours)
+      });
+      res.json(attendance);
+    } catch (error) {
+      console.error('Clock out error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Overtime routes
+  app.get('/api/overtime', authenticateToken, async (req, res) => {
+    try {
+      const employee = await storage.getEmployeeByProfileId(req.user.profileId);
+      if (!employee) {
+        return res.status(404).json({ message: 'Employee record not found' });
+      }
+
+      const overtime = await storage.getOvertimeByEmployee(employee.id);
+      res.json(overtime);
+    } catch (error) {
+      console.error('Get overtime error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/overtime', authenticateToken, async (req, res) => {
+    try {
+      const employee = await storage.getEmployeeByProfileId(req.user.profileId);
+      if (!employee) {
+        return res.status(404).json({ message: 'Employee record not found' });
+      }
+
+      const validatedData = insertOvertimeSchema.parse({
+        ...req.body,
+        employeeId: employee.id
+      });
+      const overtime = await storage.createOvertime(validatedData);
+      res.json(overtime);
+    } catch (error) {
+      console.error('Create overtime error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });

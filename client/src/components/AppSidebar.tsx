@@ -3,13 +3,17 @@ import { NavLink, useLocation } from "react-router-dom";
 import { 
   Home, 
   Clock, 
+  Timer,
   CheckSquare, 
   User, 
   Users, 
   Building2, 
   ListTodo, 
   BarChart3,
-  Settings
+  Settings,
+  Calendar,
+  FolderOpen,
+  Plane
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,15 +34,21 @@ interface UserProfile {
 
 const employeeItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Uren Registreren", url: "/time-tracking", icon: Clock },
+  { title: "Basis Tijdregistratie", url: "/time-tracking", icon: Clock },
+  { title: "Geavanceerde Timer", url: "/time-tracking-advanced", icon: Timer },
   { title: "Taken", url: "/tasks", icon: CheckSquare },
+  { title: "Verlofbeheer", url: "/leave-management", icon: Plane },
+  { title: "Projecten", url: "/projects", icon: FolderOpen },
   { title: "Profiel", url: "/profile", icon: User },
 ];
 
 const adminItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Uren Registreren", url: "/time-tracking", icon: Clock },
+  { title: "Basis Tijdregistratie", url: "/time-tracking", icon: Clock },
+  { title: "Geavanceerde Timer", url: "/time-tracking-advanced", icon: Timer },
   { title: "Taken", url: "/tasks", icon: CheckSquare },
+  { title: "Verlofbeheer", url: "/leave-management", icon: Plane },
+  { title: "Projecten", url: "/projects", icon: FolderOpen },
   { title: "Profiel", url: "/profile", icon: User },
 ];
 
@@ -58,21 +68,9 @@ export function AppSidebar() {
   const currentPath = location.pathname;
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (data && !error) {
-          setUserProfile({ role: data.role as 'admin' | 'employee' });
-        }
-      }
-    };
-
-    fetchUserProfile();
+    if (user) {
+      setUserProfile({ role: user.role as 'admin' | 'employee' });
+    }
   }, [user]);
 
   const isActive = (path: string) => currentPath === path;

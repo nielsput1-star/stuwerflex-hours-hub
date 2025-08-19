@@ -10,8 +10,11 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import TimeTracking from "./pages/TimeTracking";
+import TimeTrackingAdvanced from "./pages/TimeTrackingAdvanced";
 import Tasks from "./pages/Tasks";
 import Profile from "./pages/Profile";
+import LeaveManagement from "./pages/LeaveManagement";
+import ProjectManagement from "./pages/ProjectManagement";
 import AdminEmployees from "./pages/admin/AdminEmployees";
 import AdminDepartments from "./pages/admin/AdminDepartments";
 import AdminTasks from "./pages/admin/AdminTasks";
@@ -45,10 +48,31 @@ const App = () => (
                 </Layout>
               </ProtectedRoute>
             } />
+            <Route path="/time-tracking-advanced" element={
+              <ProtectedRoute>
+                <Layout>
+                  <TimeTrackingAdvanced />
+                </Layout>
+              </ProtectedRoute>
+            } />
             <Route path="/tasks" element={
               <ProtectedRoute>
                 <Layout>
                   <Tasks />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/leave-management" element={
+              <ProtectedRoute>
+                <Layout>
+                  <LeaveManagement />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/projects" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProjectManagement />
                 </Layout>
               </ProtectedRoute>
             } />

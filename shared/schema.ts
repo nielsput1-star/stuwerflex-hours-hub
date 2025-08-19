@@ -96,6 +96,80 @@ export const workHours = pgTable("work_hours", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Time tracking sessions (for real-time tracking)
+export const timeSessions = pgTable("time_sessions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  employeeId: uuid("employee_id").notNull(),
+  taskId: uuid("task_id").notNull(),
+  startTime: timestamp("start_time").notNull(),
+  lastUpdate: timestamp("last_update").defaultNow().notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Project management
+export const projects = pgTable("projects", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  departmentId: uuid("department_id"),
+  managerId: uuid("manager_id"),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  status: text("status").notNull().default("active"), // active, completed, on_hold
+  budget: numeric("budget", { precision: 12, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Overtime tracking
+export const overtime = pgTable("overtime", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  employeeId: uuid("employee_id").notNull(),
+  workHourId: uuid("work_hour_id"),
+  date: date("date").notNull(),
+  hours: numeric("hours", { precision: 5, scale: 2 }).notNull(),
+  reason: text("reason"),
+  approved: boolean("approved").default(false),
+  approvedBy: uuid("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Leave requests
+export const leaveRequests = pgTable("leave_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  employeeId: uuid("employee_id").notNull(),
+  type: text("type").notNull(), // vacation, sick, personal, etc.
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  days: numeric("days", { precision: 5, scale: 1 }).notNull(),
+  reason: text("reason"),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  approvedBy: uuid("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  comments: text("comments"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Attendance tracking
+export const attendance = pgTable("attendance", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  employeeId: uuid("employee_id").notNull(),
+  date: date("date").notNull(),
+  clockIn: timestamp("clock_in"),
+  clockOut: timestamp("clock_out"),
+  breakStart: timestamp("break_start"),
+  breakEnd: timestamp("break_end"),
+  totalHours: numeric("total_hours", { precision: 5, scale: 2 }),
+  status: text("status").notNull().default("present"), // present, absent, late, half_day
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Relations
 export const profilesRelations = relations(profiles, ({ one, many }) => ({
   employee: one(employees, {
@@ -154,6 +228,62 @@ export const workHoursRelations = relations(workHours, ({ one }) => ({
   }),
 }));
 
+// Additional relations for new tables
+export const timeSessionsRelations = relations(timeSessions, ({ one }) => ({
+  employee: one(employees, {
+    fields: [timeSessions.employeeId],
+    references: [employees.id],
+  }),
+  task: one(tasks, {
+    fields: [timeSessions.taskId],
+    references: [tasks.id],
+  }),
+}));
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  department: one(departments, {
+    fields: [projects.departmentId],
+    references: [departments.id],
+  }),
+  manager: one(profiles, {
+    fields: [projects.managerId],
+    references: [profiles.id],
+  }),
+}));
+
+export const overtimeRelations = relations(overtime, ({ one }) => ({
+  employee: one(employees, {
+    fields: [overtime.employeeId],
+    references: [employees.id],
+  }),
+  workHour: one(workHours, {
+    fields: [overtime.workHourId],
+    references: [workHours.id],
+  }),
+  approvedBy: one(profiles, {
+    fields: [overtime.approvedBy],
+    references: [profiles.id],
+  }),
+}));
+
+export const leaveRequestsRelations = relations(leaveRequests, ({ one }) => ({
+  employee: one(employees, {
+    fields: [leaveRequests.employeeId],
+    references: [employees.id],
+  }),
+  approvedBy: one(profiles, {
+    fields: [leaveRequests.approvedBy],
+    references: [profiles.id],
+  }),
+}));
+
+export const attendanceRelations = relations(attendance, ({ one }) => ({
+  employee: one(employees, {
+    fields: [attendance.employeeId],
+    references: [employees.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -190,6 +320,35 @@ export const insertWorkHourSchema = createInsertSchema(workHours).omit({
   updatedAt: true,
 });
 
+export const insertTimeSessionSchema = createInsertSchema(timeSessions).omit({
+  id: true,
+  createdAt: true,
+  lastUpdate: true,
+});
+
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOvertimeSchema = createInsertSchema(overtime).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertLeaveRequestSchema = createInsertSchema(leaveRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAttendanceSchema = createInsertSchema(attendance).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -199,6 +358,30 @@ export type InsertProfile = z.infer<typeof insertProfileSchema>;
 
 export type Department = typeof departments.$inferSelect;
 export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
+
+export type Employee = typeof employees.$inferSelect;
+export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
+
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+
+export type WorkHour = typeof workHours.$inferSelect;
+export type InsertWorkHour = z.infer<typeof insertWorkHourSchema>;
+
+export type TimeSession = typeof timeSessions.$inferSelect;
+export type InsertTimeSession = z.infer<typeof insertTimeSessionSchema>;
+
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+
+export type Overtime = typeof overtime.$inferSelect;
+export type InsertOvertime = z.infer<typeof insertOvertimeSchema>;
+
+export type LeaveRequest = typeof leaveRequests.$inferSelect;
+export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
+
+export type Attendance = typeof attendance.$inferSelect;
+export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 
 export type Employee = typeof employees.$inferSelect;
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;

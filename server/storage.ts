@@ -5,6 +5,11 @@ import {
   employees, 
   tasks, 
   workHours,
+  timeSessions,
+  projects,
+  overtime,
+  leaveRequests,
+  attendance,
   type User, 
   type InsertUser,
   type Profile,
@@ -16,7 +21,17 @@ import {
   type Task,
   type InsertTask,
   type WorkHour,
-  type InsertWorkHour
+  type InsertWorkHour,
+  type TimeSession,
+  type InsertTimeSession,
+  type Project,
+  type InsertProject,
+  type Overtime,
+  type InsertOvertime,
+  type LeaveRequest,
+  type InsertLeaveRequest,
+  type Attendance,
+  type InsertAttendance
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -60,6 +75,38 @@ export interface IStorage {
   getWorkHour(id: string): Promise<WorkHour | undefined>;
   createWorkHour(workHour: InsertWorkHour): Promise<WorkHour>;
   updateWorkHour(id: string, workHour: Partial<InsertWorkHour>): Promise<WorkHour | undefined>;
+  
+  // Time Sessions
+  getActiveSessions(): Promise<TimeSession[]>;
+  getActiveSessionsByEmployee(employeeId: string): Promise<TimeSession[]>;
+  getTimeSession(id: string): Promise<TimeSession | undefined>;
+  createTimeSession(session: InsertTimeSession): Promise<TimeSession>;
+  updateTimeSession(id: string, session: Partial<InsertTimeSession>): Promise<TimeSession | undefined>;
+  
+  // Projects
+  getProjects(): Promise<Project[]>;
+  getProject(id: string): Promise<Project | undefined>;
+  createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
+  
+  // Overtime
+  getOvertimeByEmployee(employeeId: string): Promise<Overtime[]>;
+  createOvertime(overtime: InsertOvertime): Promise<Overtime>;
+  updateOvertime(id: string, overtime: Partial<InsertOvertime>): Promise<Overtime | undefined>;
+  
+  // Leave Requests
+  getLeaveRequests(): Promise<LeaveRequest[]>;
+  getLeaveRequestsByEmployee(employeeId: string): Promise<LeaveRequest[]>;
+  getPendingLeaveRequests(): Promise<LeaveRequest[]>;
+  getLeaveRequest(id: string): Promise<LeaveRequest | undefined>;
+  createLeaveRequest(request: InsertLeaveRequest): Promise<LeaveRequest>;
+  updateLeaveRequest(id: string, request: Partial<InsertLeaveRequest>): Promise<LeaveRequest | undefined>;
+  
+  // Attendance
+  getAttendanceByEmployee(employeeId: string): Promise<Attendance[]>;
+  getTodayAttendance(employeeId: string): Promise<Attendance | undefined>;
+  createAttendance(attendance: InsertAttendance): Promise<Attendance>;
+  updateAttendance(id: string, attendance: Partial<InsertAttendance>): Promise<Attendance | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -213,6 +260,142 @@ export class DatabaseStorage implements IStorage {
       .where(eq(workHours.id, id))
       .returning();
     return workHour || undefined;
+  }
+
+  // Time Sessions
+  async getActiveSessions(): Promise<TimeSession[]> {
+    return await db.select().from(timeSessions)
+      .where(eq(timeSessions.isActive, true))
+      .orderBy(desc(timeSessions.startTime));
+  }
+
+  async getActiveSessionsByEmployee(employeeId: string): Promise<TimeSession[]> {
+    return await db.select().from(timeSessions)
+      .where(and(eq(timeSessions.employeeId, employeeId), eq(timeSessions.isActive, true)))
+      .orderBy(desc(timeSessions.startTime));
+  }
+
+  async getTimeSession(id: string): Promise<TimeSession | undefined> {
+    const [session] = await db.select().from(timeSessions).where(eq(timeSessions.id, id));
+    return session || undefined;
+  }
+
+  async createTimeSession(insertSession: InsertTimeSession): Promise<TimeSession> {
+    const [session] = await db.insert(timeSessions).values(insertSession).returning();
+    return session;
+  }
+
+  async updateTimeSession(id: string, sessionUpdate: Partial<InsertTimeSession>): Promise<TimeSession | undefined> {
+    const [session] = await db.update(timeSessions)
+      .set({ ...sessionUpdate, lastUpdate: new Date() })
+      .where(eq(timeSessions.id, id))
+      .returning();
+    return session || undefined;
+  }
+
+  // Projects
+  async getProjects(): Promise<Project[]> {
+    return await db.select().from(projects).orderBy(desc(projects.createdAt));
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project || undefined;
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const [project] = await db.insert(projects).values(insertProject).returning();
+    return project;
+  }
+
+  async updateProject(id: string, projectUpdate: Partial<InsertProject>): Promise<Project | undefined> {
+    const [project] = await db.update(projects)
+      .set({ ...projectUpdate, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return project || undefined;
+  }
+
+  // Overtime
+  async getOvertimeByEmployee(employeeId: string): Promise<Overtime[]> {
+    return await db.select().from(overtime)
+      .where(eq(overtime.employeeId, employeeId))
+      .orderBy(desc(overtime.date));
+  }
+
+  async createOvertime(insertOvertime: InsertOvertime): Promise<Overtime> {
+    const [overtimeRecord] = await db.insert(overtime).values(insertOvertime).returning();
+    return overtimeRecord;
+  }
+
+  async updateOvertime(id: string, overtimeUpdate: Partial<InsertOvertime>): Promise<Overtime | undefined> {
+    const [overtimeRecord] = await db.update(overtime)
+      .set(overtimeUpdate)
+      .where(eq(overtime.id, id))
+      .returning();
+    return overtimeRecord || undefined;
+  }
+
+  // Leave Requests
+  async getLeaveRequests(): Promise<LeaveRequest[]> {
+    return await db.select().from(leaveRequests).orderBy(desc(leaveRequests.createdAt));
+  }
+
+  async getLeaveRequestsByEmployee(employeeId: string): Promise<LeaveRequest[]> {
+    return await db.select().from(leaveRequests)
+      .where(eq(leaveRequests.employeeId, employeeId))
+      .orderBy(desc(leaveRequests.createdAt));
+  }
+
+  async getPendingLeaveRequests(): Promise<LeaveRequest[]> {
+    return await db.select().from(leaveRequests)
+      .where(eq(leaveRequests.status, 'pending'))
+      .orderBy(desc(leaveRequests.createdAt));
+  }
+
+  async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
+    const [request] = await db.select().from(leaveRequests).where(eq(leaveRequests.id, id));
+    return request || undefined;
+  }
+
+  async createLeaveRequest(insertRequest: InsertLeaveRequest): Promise<LeaveRequest> {
+    const [request] = await db.insert(leaveRequests).values(insertRequest).returning();
+    return request;
+  }
+
+  async updateLeaveRequest(id: string, requestUpdate: Partial<InsertLeaveRequest>): Promise<LeaveRequest | undefined> {
+    const [request] = await db.update(leaveRequests)
+      .set({ ...requestUpdate, updatedAt: new Date() })
+      .where(eq(leaveRequests.id, id))
+      .returning();
+    return request || undefined;
+  }
+
+  // Attendance
+  async getAttendanceByEmployee(employeeId: string): Promise<Attendance[]> {
+    return await db.select().from(attendance)
+      .where(eq(attendance.employeeId, employeeId))
+      .orderBy(desc(attendance.date));
+  }
+
+  async getTodayAttendance(employeeId: string): Promise<Attendance | undefined> {
+    const today = new Date().toISOString().split('T')[0];
+    const [attendanceRecord] = await db.select().from(attendance)
+      .where(and(eq(attendance.employeeId, employeeId), eq(attendance.date, today)));
+    return attendanceRecord || undefined;
+  }
+
+  async createAttendance(insertAttendance: InsertAttendance): Promise<Attendance> {
+    const [attendanceRecord] = await db.insert(attendance).values(insertAttendance).returning();
+    return attendanceRecord;
+  }
+
+  async updateAttendance(id: string, attendanceUpdate: Partial<InsertAttendance>): Promise<Attendance | undefined> {
+    const [attendanceRecord] = await db.update(attendance)
+      .set({ ...attendanceUpdate, updatedAt: new Date() })
+      .where(eq(attendance.id, id))
+      .returning();
+    return attendanceRecord || undefined;
   }
 }
 
