@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface Task {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   type: string;
   estimated_hours: number | null;
   departments: { name: string } | null;

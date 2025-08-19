@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 interface Task {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   type: string;
 }
 

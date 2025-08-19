@@ -30,14 +30,14 @@ const Auth = () => {
       
       if (error) {
         toast({
-          title: "Login fout",
-          description: error.message,
+          title: "Login Error",
+          description: error.message || "Invalid credentials",
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Succesvol ingelogd",
-          description: "Welkom terug!",
+          title: "Successfully Logged In",
+          description: "Welcome back!",
         });
         navigate('/dashboard');
       }
@@ -61,15 +61,16 @@ const Auth = () => {
       
       if (error) {
         toast({
-          title: "Registratie fout",
-          description: error.message,
+          title: "Registration Error",
+          description: error.message || "Registration failed",
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Account aangemaakt",
-          description: "Check je email voor bevestiging",
+          title: "Account Created",
+          description: "You are now logged in!",
         });
+        navigate('/dashboard');
       }
     } catch (error) {
       toast({
@@ -92,13 +93,22 @@ const Auth = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-center">Inloggen / Registreren</CardTitle>
+            <CardTitle className="text-center">Login / Register</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-blue-800 dark:text-blue-200 font-medium mb-2">Demo Accounts:</p>
+              <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                <li>• Admin: admin@stuwflex.com / demo123</li>
+                <li>• Manager: manager@stuwflex.com / demo123</li>
+                <li>• Employee: employee@stuwflex.com / demo123</li>
+              </ul>
+            </div>
+            
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Inloggen</TabsTrigger>
-                <TabsTrigger value="signup">Registreren</TabsTrigger>
+                <TabsTrigger value="login">Login</TabsTrigger>
+                <TabsTrigger value="signup">Register</TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
@@ -124,7 +134,7 @@ const Auth = () => {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Inloggen...' : 'Inloggen'}
+                    {isLoading ? 'Logging in...' : 'Login'}
                   </Button>
                 </form>
               </TabsContent>
